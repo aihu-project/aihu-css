@@ -1,5 +1,5 @@
 ---
-source: packages/css-engine/crates/aihu-css-core/tests/tokens.rs
+source: crates/aihu-css-core/tests/tokens.rs
 expression: "css(&[\"text-lg\", \"text-center\", \"font-bold\", \"italic\", \"underline\",\n\"uppercase\", \"truncate\",])"
 ---
 .text-lg { font-size: 1.125rem; line-height: 1.75rem; }

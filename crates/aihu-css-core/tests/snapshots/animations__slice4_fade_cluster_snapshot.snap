@@ -1,5 +1,5 @@
 ---
-source: packages/css-engine/crates/aihu-css-core/tests/animations.rs
+source: crates/aihu-css-core/tests/animations.rs
 assertion_line: 91
 expression: compile_classes(&classes)
 ---

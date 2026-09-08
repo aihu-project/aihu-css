@@ -1,5 +1,5 @@
 ---
-source: packages/css-engine/crates/aihu-css-core/tests/scoped_snapshot.rs
+source: crates/aihu-css-core/tests/scoped_snapshot.rs
 assertion_line: 90
 expression: "compile_sfc_scoped(&sfc(\"hover:bg-primary focus:text-accent dark:bg-surface md:p-8 [&>div]:text-primary md:hover:bg-primary\")).unwrap()"
 ---

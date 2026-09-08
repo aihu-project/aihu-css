@@ -1,5 +1,5 @@
 ---
-source: packages/css-engine/crates/aihu-css-core/tests/light_scope_snapshot.rs
+source: crates/aihu-css-core/tests/light_scope_snapshot.rs
 assertion_line: 120
 expression: "compile_sfc_scoped(&light(\"@keyframes fade { from { opacity: 0.5; } to { opacity: 1; } } \\\n         @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } } \\\n         .a { animation-name: fade; } .b { animation-name: fade-in; }\")).unwrap()"
 ---

@@ -1,5 +1,5 @@
 ---
-source: packages/css-engine/crates/aihu-css-core/tests/recipes.rs
+source: crates/aihu-css-core/tests/recipes.rs
 assertion_line: 31
 expression: css
 ---

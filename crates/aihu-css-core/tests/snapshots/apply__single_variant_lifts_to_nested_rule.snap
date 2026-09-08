@@ -1,5 +1,5 @@
 ---
-source: packages/css-engine/crates/aihu-css-core/tests/apply.rs
+source: crates/aihu-css-core/tests/apply.rs
 assertion_line: 54
 expression: css
 ---

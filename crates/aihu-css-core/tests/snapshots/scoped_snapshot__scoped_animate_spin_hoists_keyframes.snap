@@ -1,5 +1,5 @@
 ---
-source: packages/css-engine/crates/aihu-css-core/tests/scoped_snapshot.rs
+source: crates/aihu-css-core/tests/scoped_snapshot.rs
 assertion_line: 70
 expression: "compile_sfc_scoped(&sfc(\"animate-spin\")).unwrap()"
 ---

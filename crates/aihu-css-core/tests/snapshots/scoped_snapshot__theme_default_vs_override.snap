@@ -1,5 +1,5 @@
 ---
-source: packages/css-engine/crates/aihu-css-core/tests/scoped_snapshot.rs
+source: crates/aihu-css-core/tests/scoped_snapshot.rs
 assertion_line: 142
 expression: "format!(\"--- default ---\\n{default}\\n--- override ---\\n{overridden}\")"
 ---

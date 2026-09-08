@@ -1,5 +1,5 @@
 ---
-source: packages/css-engine/crates/aihu-css-core/tests/tokens.rs
+source: crates/aihu-css-core/tests/tokens.rs
 assertion_line: 28
 expression: "css(&[\"bg-info\", \"text-info-foreground\", \"bg-success\",\n\"text-success-foreground\", \"bg-warning\", \"text-warning-foreground\",\n\"bg-neutral\", \"text-neutral-foreground\",])"
 ---

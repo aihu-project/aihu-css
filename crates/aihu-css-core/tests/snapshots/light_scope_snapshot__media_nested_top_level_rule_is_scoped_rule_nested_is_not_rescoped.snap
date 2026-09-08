@@ -1,5 +1,5 @@
 ---
-source: packages/css-engine/crates/aihu-css-core/tests/light_scope_snapshot.rs
+source: crates/aihu-css-core/tests/light_scope_snapshot.rs
 assertion_line: 94
 expression: "compile_sfc_scoped(&light(\"@media (min-width: 40rem) { .card { color: red; } } .card { @media (min-width: 40rem) { color: blue; } }\")).unwrap()"
 ---

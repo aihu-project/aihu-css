@@ -1,5 +1,5 @@
 ---
-source: packages/css-engine/crates/aihu-css-core/tests/scoped_snapshot.rs
+source: crates/aihu-css-core/tests/scoped_snapshot.rs
 assertion_line: 83
 expression: "compile_sfc_scoped(&sfc(\"host:bg-primary slotted:p-4 slotted-img:rounded-lg part-thumb:bg-accent host-context-dark:bg-surface\")).unwrap()"
 ---

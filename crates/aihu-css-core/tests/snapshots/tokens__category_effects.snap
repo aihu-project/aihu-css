@@ -1,5 +1,5 @@
 ---
-source: packages/css-engine/crates/aihu-css-core/tests/tokens.rs
+source: crates/aihu-css-core/tests/tokens.rs
 expression: "css(&[\"shadow\", \"shadow-lg\", \"shadow-none\", \"opacity-50\"])"
 ---
 .shadow { box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1); }

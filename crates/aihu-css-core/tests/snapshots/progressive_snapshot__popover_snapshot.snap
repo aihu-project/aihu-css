@@ -1,5 +1,5 @@
 ---
-source: packages/css-engine/crates/aihu-css-core/tests/progressive_snapshot.rs
+source: crates/aihu-css-core/tests/progressive_snapshot.rs
 assertion_line: 80
 expression: "compile_sfc_scoped(&sfc(\"popover:menu\")).unwrap()"
 ---

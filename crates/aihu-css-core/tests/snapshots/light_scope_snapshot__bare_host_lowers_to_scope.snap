@@ -1,5 +1,5 @@
 ---
-source: packages/css-engine/crates/aihu-css-core/tests/light_scope_snapshot.rs
+source: crates/aihu-css-core/tests/light_scope_snapshot.rs
 assertion_line: 35
 expression: "compile_sfc_scoped(&light(\":host { display: block; }\")).unwrap()"
 ---
