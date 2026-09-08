@@ -1,5 +1,16 @@
 # @aihu/css-engine
 
+## 0.6.2
+
+### Patch Changes
+
+- Publish the compiler-facing `AihuCssProvider` adapter added in the standalone
+  repository split. The new `aihuCssProvider` export forwards the compiler's
+  resolved light-DOM scope while preserving the direct `compileSfc()` API.
+- Update the host package's compiler dependency to `@aihu/compiler@^1.3.6`.
+- Keep the native platform packages at `0.1.17`; this release changes the host
+  TypeScript adapter and metadata without changing the native binary.
+
 ## 0.6.1
 
 ### Patch Changes
