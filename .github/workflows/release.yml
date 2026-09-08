@@ -107,13 +107,28 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [darwin-arm64, darwin-x64, linux-x64-gnu, win32-x64-msvc]
+        include:
+          - platform: darwin-arm64
+            binary: aihu-css-compile
+          - platform: darwin-x64
+            binary: aihu-css-compile
+          - platform: linux-x64-gnu
+            binary: aihu-css-compile
+          - platform: win32-x64-msvc
+            binary: aihu-css-compile.exe
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: css-native-${{ matrix.platform }}
           path: staging/${{ matrix.platform }}
+      - name: Restore executable bit (Unix)
+        if: matrix.platform != 'win32-x64-msvc'
+        shell: bash
+        run: chmod 0755 "staging/${{ matrix.platform }}/${{ matrix.binary }}"
+      - name: Validate staged native artifact
+        shell: bash
+        run: test -s "staging/${{ matrix.platform }}/${{ matrix.binary }}"
       - uses: actions/setup-node@v4
         with:
           node-version: 22
