@@ -1,0 +1,183 @@
+name: Publish CSS engine
+
+on:
+  push:
+    tags:
+      - 'css-v*'
+
+permissions:
+  contents: read
+
+env:
+  NPM_REGISTRY: https://registry.npmjs.org
+
+jobs:
+  verify:
+    name: Verify release manifests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.95.0
+          components: rustfmt
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: ${{ env.NPM_REGISTRY }}
+      - name: Install and verify
+        run: |
+          bun install --frozen-lockfile
+          bun run check:platform-pins
+          bun run check:ci
+      - name: Verify tag matches the host package
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          expected="${RELEASE_TAG#css-v}"
+          actual="$(node -p "require('./package.json').version")"
+          if [ "$expected" != "$actual" ]; then
+            echo "::error::tag $RELEASE_TAG must match @aihu/css-engine@$actual"
+            exit 1
+          fi
+
+  build-native:
+    name: Build ${{ matrix.platform }} binary
+    needs: verify
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: darwin-arm64
+            runner: macos-14
+            target: aarch64-apple-darwin
+            extension: ''
+          - platform: darwin-x64
+            runner: macos-14
+            target: x86_64-apple-darwin
+            extension: ''
+          - platform: linux-x64-gnu
+            runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            extension: ''
+          - platform: win32-x64-msvc
+            runner: windows-2022
+            target: x86_64-pc-windows-msvc
+            extension: '.exe'
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.95.0
+          targets: ${{ matrix.target }}
+      - name: Build native executable
+        run: cargo build --release --target ${{ matrix.target }} --bin aihu-css-compile
+      - name: Stage native package
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "staging/${{ matrix.platform }}"
+          cp "npm/${{ matrix.platform }}/package.json" "staging/${{ matrix.platform }}/package.json"
+          cp "npm/${{ matrix.platform }}/README.md" "staging/${{ matrix.platform }}/README.md"
+          cp "target/${{ matrix.target }}/release/aihu-css-compile${{ matrix.extension }}" \
+            "staging/${{ matrix.platform }}/aihu-css-compile${{ matrix.extension }}"
+          test -s "staging/${{ matrix.platform }}/aihu-css-compile${{ matrix.extension }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: css-native-${{ matrix.platform }}
+          path: staging/${{ matrix.platform }}
+          if-no-files-found: error
+
+  publish-native:
+    name: Publish native packages
+    needs: build-native
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: darwin-arm64
+            binary: aihu-css-compile
+          - platform: darwin-x64
+            binary: aihu-css-compile
+          - platform: linux-x64-gnu
+            binary: aihu-css-compile
+          - platform: win32-x64-msvc
+            binary: aihu-css-compile.exe
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: css-native-${{ matrix.platform }}
+          path: staging/${{ matrix.platform }}
+      - name: Restore executable bit (Unix)
+        if: matrix.platform != 'win32-x64-msvc'
+        shell: bash
+        run: chmod 0755 "staging/${{ matrix.platform }}/${{ matrix.binary }}"
+      - name: Validate staged native artifact
+        shell: bash
+        run: test -s "staging/${{ matrix.platform }}/${{ matrix.binary }}"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: ${{ env.NPM_REGISTRY }}
+      - name: Publish native package if its exact version is new
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          package="$(node -p "require('./staging/${{ matrix.platform }}/package.json').name")"
+          version="$(node -p "require('./staging/${{ matrix.platform }}/package.json').version")"
+          if npm view "$package@$version" version --registry "$NPM_REGISTRY" >/dev/null 2>&1; then
+            echo "$package@$version already exists; keeping the release idempotent"
+          else
+            npm publish "staging/${{ matrix.platform }}" --access public --registry "$NPM_REGISTRY"
+          fi
+
+  publish-host:
+    name: Publish host package
+    needs: publish-native
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.95.0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: ${{ env.NPM_REGISTRY }}
+      - name: Build and publish host package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          bun install --frozen-lockfile
+          bun run check:platform-pins
+          bun run build
+          package="$(node -p "require('./package.json').name")"
+          version="$(node -p "require('./package.json').version")"
+          if npm view "$package@$version" version --registry "$NPM_REGISTRY" >/dev/null 2>&1; then
+            echo "$package@$version already exists; keeping the release idempotent"
+          else
+            npm publish . --access public --registry "$NPM_REGISTRY"
+          fi

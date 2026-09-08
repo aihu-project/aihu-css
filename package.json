@@ -38,7 +38,7 @@
   "sideEffects": false,
   "dependencies": {
     "@aihu/arbor": "^4.1.2",
-    "@aihu/compiler": "^1.3.2"
+    "@aihu/compiler": "^1.3.6"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.14",
@@ -65,12 +65,13 @@
     "test": "vitest run",
     "check:cn-map": "bun scripts/gen-cn-conflict-map.ts --check",
     "check:animations-gallery": "bun scripts/gen-animations-gallery.ts --check",
+    "check:platform-pins": "bun scripts/check-platform-pins.ts",
     "test:rust": "cargo test",
     "typecheck": "tsc --noEmit",
     "lint": "biome lint .",
     "format": "biome format --write .",
     "check:lint": "biome ci .",
-    "check:ci": "bun run check:lint && bun run typecheck && bun run test && bun run test:rust && bun run build && bun run check:animations-gallery && bun pm pack --dry-run",
+    "check:ci": "bun run check:lint && bun run typecheck && bun run check:platform-pins && bun run test && bun run test:rust && bun run build && bun run check:animations-gallery && bun pm pack --dry-run",
     "prepublishOnly": "bun run build"
   },
   "description": "aihu CSS engine \u2014 Tailwind v4 hard fork with WC-native scoped output.",

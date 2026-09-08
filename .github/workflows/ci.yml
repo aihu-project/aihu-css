@@ -28,6 +28,7 @@ jobs:
       - run: git diff --exit-code -- gallery src/runtime/cn-conflict-map.generated.ts styles
       - run: bun run check:lint
       - run: bun run typecheck
+      - run: bun run check:platform-pins
       - run: bun run test
       - run: bun run check:cn-map
       - run: bun run check:animations-gallery

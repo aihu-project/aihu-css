@@ -26,6 +26,25 @@ the boundary between this standalone engine and the framework repository.
 | Style packs (`aihu-default`, `aihu-graphite`) — `defineStylePack()`, `./packs`, `./styles/*.css` | ✅ shipped |
 | `cn()` runtime helper — `@aihu/css-engine/runtime/cn` | ✅ shipped |
 
+### Using the compiler provider contract
+
+The engine can be installed as an explicit provider, which keeps the compiler
+independent of any particular CSS implementation while preserving the direct
+`compileSfc()` API:
+
+```ts
+import { aihuCompilerPlugin } from '@aihu/compiler'
+import { aihuCssProvider } from '@aihu/css-engine'
+
+export default {
+  plugins: [aihuCompilerPlugin({ cssProvider: aihuCssProvider })],
+}
+```
+
+`aihuCssProvider` forwards the compiler's resolved light-DOM scope to the CSS
+engine. Use `createAihuCssProvider(compileSfcCompatible)` when wrapping a
+compatible engine implementation or test double.
+
 ### Native binary distribution
 
 `compile()` / `compileSfc()` shell out to the prebuilt `aihu-css-compile`
@@ -34,6 +53,14 @@ as a per-platform `optionalDependencies` package
 (`@aihu/css-engine-{darwin-arm64,darwin-x64,linux-x64-gnu,win32-x64-msvc}`),
 resolved automatically at build time — no Rust toolchain required. In a source
 clone the engine falls back to the checkout's `target/release` binary.
+
+Release tags use `css-v<host-version>`. The host package and native packages
+have separate version streams (`0.6.x` and `0.1.x` respectively), but all four
+native packages move together. CI verifies the exact pins, builds each native
+binary on its target runner, publishes new native versions first, and publishes
+the host package only after those jobs succeed. A Rust change therefore needs a
+native version bump in all four `npm/*/package.json` files plus the matching
+host `optionalDependencies` pins.
 
 ### Enabling utility-class CSS in a user project
 
