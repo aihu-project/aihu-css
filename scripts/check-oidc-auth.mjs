@@ -5,7 +5,7 @@ const forbiddenEnv = /^(?:NPM_TOKEN|NODE_AUTH_TOKEN)$/i
 for (const [name, value] of Object.entries(process.env)) {
   if (
     value &&
-    (forbiddenEnv.test(name) || /^npm_config_.*(?:authtoken|_auth|token)$/i.test(name))
+    (forbiddenEnv.test(name) || /^npm_config_.*(?:authtoken|_auth|_password|token)$/i.test(name))
   ) {
     throw new Error(
       'classic npm authentication environment is set; trusted publishing requires OIDC',

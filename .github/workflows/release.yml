@@ -12,6 +12,7 @@ permissions:
 env:
   NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
   NPM_CONFIG_USERCONFIG: /tmp/aihu-css-npmrc-oidc-only
+  DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
 
 jobs:
   verify:
@@ -36,9 +37,17 @@ jobs:
         run: |
           printf '%s\n' 'registry=https://registry.npmjs.org/' > "$NPM_CONFIG_USERCONFIG"
           npm install --global npm@11.5.1 --ignore-scripts
-          bun install --frozen-lockfile
+          bun install --frozen-lockfile --ignore-scripts
+          bun run test:release-contract
           bun run check:platform-pins
           bun run check:ci
+      - name: Bind release to merged default branch
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$DEFAULT_BRANCH" --depth=1
+          git merge-base --is-ancestor "$RELEASE_SHA" FETCH_HEAD
       - name: Verify tag matches the host package
         env:
           RELEASE_TAG: ${{ github.ref_name }}
@@ -103,8 +112,10 @@ jobs:
   publish-native:
     name: Publish native packages
     needs: build-native
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
+    env:
+      NPM_CONFIG_USERCONFIG: .npmrc
     permissions:
       contents: read
       id-token: write
@@ -114,12 +125,25 @@ jobs:
         include:
           - platform: darwin-arm64
             binary: aihu-css-compile
+            runner: macos-14
+            os: darwin
+            cpu: arm64
           - platform: darwin-x64
             binary: aihu-css-compile
+            runner: macos-15-intel
+            os: darwin
+            cpu: x64
           - platform: linux-x64-gnu
             binary: aihu-css-compile
+            runner: ubuntu-22.04
+            os: linux
+            cpu: x64
+            libc: glibc
           - platform: win32-x64-msvc
             binary: aihu-css-compile.exe
+            runner: windows-2022
+            os: win32
+            cpu: x64
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -132,15 +156,22 @@ jobs:
         run: chmod 0755 "staging/${{ matrix.platform }}/${{ matrix.binary }}"
       - name: Validate staged native artifact
         shell: bash
-        run: test -s "staging/${{ matrix.platform }}/${{ matrix.binary }}"
+        run: |
+          test -s "staging/${{ matrix.platform }}/${{ matrix.binary }}"
+          test "$(node -p "JSON.stringify(require('./staging/${{ matrix.platform }}/package.json').os)")" = '["${{ matrix.os }}"]'
+          test "$(node -p "JSON.stringify(require('./staging/${{ matrix.platform }}/package.json').cpu)")" = '["${{ matrix.cpu }}"]'
+          if [ -n "${{ matrix.libc || '' }}" ]; then test "$(node -p "JSON.stringify(require('./staging/${{ matrix.platform }}/package.json').libc)")" = '["${{ matrix.libc }}"]'; fi
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22.14.0
       - name: Prepare OIDC-only npm config
+        shell: bash
         run: printf '%s\n' 'registry=https://registry.npmjs.org/' > "$NPM_CONFIG_USERCONFIG"
       - name: Pin npm for trusted publishing
+        shell: bash
         run: npm install --global npm@11.5.1 --ignore-scripts
       - name: Reject classic npm authentication
+        shell: bash
         run: node scripts/check-oidc-auth.mjs
       - name: Pack, consume, and publish exact native tarball
         shell: bash
@@ -148,24 +179,15 @@ jobs:
           set -euo pipefail
           root="staging/${{ matrix.platform }}"
           package="$(node -p "require('./$root/package.json').name")"
-          version="$(node -p "require('./$root/package.json').version")"
           pack_dir="$RUNNER_TEMP/css-native-pack-${{ matrix.platform }}"
           mkdir -p "$pack_dir"
-          npm pack --ignore-scripts --json --pack-destination "$pack_dir" "$root" >/dev/null
+          PACK_DIR="$pack_dir" node scripts/verify-pack.mjs "$root"
           pack_path="$(node -e "const fs=require('node:fs'),path=require('node:path'); const d=process.argv[1]; const xs=fs.readdirSync(d).filter((x)=>x.endsWith('.tgz')); if(xs.length!==1) process.exit(1); process.stdout.write(path.join(d,xs[0]))" "$pack_dir")"
           consumer="$(mktemp -d)"
-          (cd "$consumer" && npm init -y >/dev/null && npm install --force --ignore-scripts --no-package-lock --no-audit --no-fund "$pack_path" >/dev/null)
+          (cd "$consumer" && npm init -y >/dev/null && npm install --ignore-scripts --no-package-lock --no-audit --no-fund "$pack_path" >/dev/null)
           test -s "$consumer/node_modules/$package/${{ matrix.binary }}"
-          view_error="$(mktemp)"
-          if npm view "$package@$version" version --registry "$NPM_CONFIG_REGISTRY" >/dev/null 2>"$view_error"; then
-            rm -f "$view_error"
-          elif grep -Eq 'E404|404 Not Found' "$view_error"; then
-            rm -f "$view_error"
-            npm publish "$pack_path" --access public --provenance --registry "$NPM_CONFIG_REGISTRY"
-          else
-            rm -f "$view_error"
-            exit 1
-          fi
+          node scripts/assert-unpublished.mjs "$root"
+          npm publish "$pack_path" --access public --provenance --registry "$NPM_CONFIG_REGISTRY"
 
   publish-host:
     name: Publish host package
@@ -194,7 +216,8 @@ jobs:
         run: node scripts/check-oidc-auth.mjs
       - name: Build and validate host package
         run: |
-          bun install --frozen-lockfile
+          bun install --frozen-lockfile --ignore-scripts
+          bun run test:release-contract
           bun run check:platform-pins
           bun run build
       - name: Confirm registry returns E404 only
