@@ -46,8 +46,13 @@ jobs:
           RELEASE_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          git fetch --no-tags origin "$DEFAULT_BRANCH" --depth=1
+          git fetch --no-tags origin "$DEFAULT_BRANCH"
           git merge-base --is-ancestor "$RELEASE_SHA" FETCH_HEAD
+      - name: Verify reviewed merged release commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: node scripts/assert-reviewed-release.mjs
       - name: Verify tag matches the host package
         env:
           RELEASE_TAG: ${{ github.ref_name }}
