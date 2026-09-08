@@ -15,6 +15,7 @@ jobs:
   verify:
     name: Verify release manifests
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -49,21 +50,26 @@ jobs:
   build-native:
     name: Build ${{ matrix.platform }} binary
     needs: verify
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         include:
           - platform: darwin-arm64
             runner: macos-14
+            target: aarch64-apple-darwin
             extension: ''
           - platform: darwin-x64
-            runner: macos-15-intel
+            runner: macos-14
+            target: x86_64-apple-darwin
             extension: ''
           - platform: linux-x64-gnu
-            runner: ubuntu-latest
+            runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
             extension: ''
           - platform: win32-x64-msvc
-            runner: windows-latest
+            runner: windows-2022
+            target: x86_64-pc-windows-msvc
             extension: '.exe'
     runs-on: ${{ matrix.runner }}
     steps:
@@ -71,8 +77,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.95.0
+          targets: ${{ matrix.target }}
       - name: Build native executable
-        run: cargo build --release --bin aihu-css-compile
+        run: cargo build --release --target ${{ matrix.target }} --bin aihu-css-compile
       - name: Stage native package
         shell: bash
         run: |
@@ -80,7 +87,7 @@ jobs:
           mkdir -p "staging/${{ matrix.platform }}"
           cp "npm/${{ matrix.platform }}/package.json" "staging/${{ matrix.platform }}/package.json"
           cp "npm/${{ matrix.platform }}/README.md" "staging/${{ matrix.platform }}/README.md"
-          cp "target/release/aihu-css-compile${{ matrix.extension }}" \
+          cp "target/${{ matrix.target }}/release/aihu-css-compile${{ matrix.extension }}" \
             "staging/${{ matrix.platform }}/aihu-css-compile${{ matrix.extension }}"
           test -s "staging/${{ matrix.platform }}/aihu-css-compile${{ matrix.extension }}"
       - uses: actions/upload-artifact@v4
@@ -92,7 +99,8 @@ jobs:
   publish-native:
     name: Publish native packages
     needs: build-native
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
     permissions:
       contents: read
       id-token: write
@@ -101,6 +109,7 @@ jobs:
       matrix:
         platform: [darwin-arm64, darwin-x64, linux-x64-gnu, win32-x64-msvc]
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: css-native-${{ matrix.platform }}
@@ -126,7 +135,8 @@ jobs:
   publish-host:
     name: Publish host package
     needs: publish-native
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
     permissions:
       contents: read
       id-token: write
@@ -149,4 +159,10 @@ jobs:
           bun install --frozen-lockfile
           bun run check:platform-pins
           bun run build
-          npm publish . --access public --registry "$NPM_REGISTRY"
+          package="$(node -p "require('./package.json').name")"
+          version="$(node -p "require('./package.json').version")"
+          if npm view "$package@$version" version --registry "$NPM_REGISTRY" >/dev/null 2>&1; then
+            echo "$package@$version already exists; keeping the release idempotent"
+          else
+            npm publish . --access public --registry "$NPM_REGISTRY"
+          fi
