@@ -155,7 +155,7 @@ jobs:
           pack_path="$(node -e "const fs=require('node:fs'),path=require('node:path'); const d=process.argv[1]; const xs=fs.readdirSync(d).filter((x)=>x.endsWith('.tgz')); if(xs.length!==1) process.exit(1); process.stdout.write(path.join(d,xs[0]))" "$pack_dir")"
           consumer="$(mktemp -d)"
           (cd "$consumer" && npm init -y >/dev/null && npm install --force --ignore-scripts --no-package-lock --no-audit --no-fund "$pack_path" >/dev/null)
-          test -s "$consumer/node_modules/${package#@aihu/}/${{ matrix.binary }}"
+          test -s "$consumer/node_modules/$package/${{ matrix.binary }}"
           view_error="$(mktemp)"
           if npm view "$package@$version" version --registry "$NPM_CONFIG_REGISTRY" >/dev/null 2>"$view_error"; then
             rm -f "$view_error"
