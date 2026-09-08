@@ -3,7 +3,9 @@ import { accessSync, constants, existsSync, statSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { compileToAst } from '@aihu/compiler'
+import { type AihuCssProvider, compileToAst } from '@aihu/compiler'
+
+export type { AihuCssProvider, AihuCssProviderContext } from '@aihu/compiler'
 
 export {
   DARK_SELECTOR,
@@ -391,8 +393,8 @@ export function compile(classes: string[]): string {
  * @param lightScopeId - the compiler-assigned `data-a` scope id (light-DOM leaf
  *   flip prep, LDF §10 step 1), only when the compiler resolved this SFC to
  *   `shadowMode: 'light'`. Injected onto the AST payload before it crosses the
- *   `--ast-json` boundary; not yet consumed by the CSS engine (step 3 does
- *   that) — passing it today is inert plumbing.
+ *   `--ast-json` boundary and consumed by the CSS engine to lower selectors to
+ *   the component's light-DOM scope.
  * @returns the scoped CSS string for the SFC
  */
 export function compileSfc(source: string, id?: string, lightScopeId?: string): string {
@@ -401,3 +403,20 @@ export function compileSfc(source: string, id?: string, lightScopeId?: string): 
   const bin = resolveBinary()
   return runBinary(bin, ['--ast-json'], JSON.stringify(payload))
 }
+
+/**
+ * The compiler-facing CSS provider backed by this package.
+ *
+ * `compileSfc` remains the compatibility API for callers that invoke the
+ * engine directly. The adapter gives `aihuCompilerPlugin({ cssProvider })`
+ * the same engine without requiring the compiler to discover this package by
+ * name. A light-DOM scope is forwarded only for light output; the compiler's
+ * resolved target is intentionally not interpreted by this CSS engine.
+ */
+export function createAihuCssProvider(compile: typeof compileSfc = compileSfc): AihuCssProvider {
+  return ({ source, id, shadowMode, lightScopeId }) =>
+    compile(source, id, shadowMode === 'light' ? lightScopeId : undefined)
+}
+
+/** Ready-to-use provider for `aihuCompilerPlugin({ cssProvider })`. */
+export const aihuCssProvider: AihuCssProvider = createAihuCssProvider()
