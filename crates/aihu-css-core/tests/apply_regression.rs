@@ -1,24 +1,17 @@
-//! R-NO-PREMIGRATION-BREAK (CRITICAL): every current `packages/ui/registry/*`
-//! recipe's authored `@style` block must pass through `@apply` expansion with no
-//! hard-error. If a recipe uses a utility token the table does not cover, this
-//! test fails — and the fix is to cover the token in `tokens.rs` (or fix the
-//! recipe) BEFORE enabling expansion, so turning `@apply` on does not break the
-//! shipped recipes.
-//!
-//! The test reads the `.aihu` SFC files directly (relative to the crate, two
-//! levels up to the repo root), extracts each `@style { … }` block body with a
-//! brace-matched scan, strips `@theme` blocks (handled separately by the
-//! emitter), and runs `expand_apply` on the remainder.
+//! The standalone package keeps a small local recipe fixture so the `@apply`
+//! expansion contract stays testable without the framework UI registry.
+//! Framework-wide registry coverage remains an explicit integration seam in the
+//! parent `aihu` repository; this local test protects the engine from losing the
+//! utilities needed by its representative recipe.
 
 use std::path::PathBuf;
 
 use aihu_css_core::{expand_apply, SfcStyleScope, ThemeRegistry};
 
-/// The repo root, derived from this crate's manifest dir
-/// (`<root>/packages/css-engine/crates/aihu-css-core`).
+/// The standalone repository root, derived from this crate's manifest dir.
 fn repo_root() -> PathBuf {
     let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    for _ in 0..4 {
+    for _ in 0..2 {
         p.pop();
     }
     p
@@ -103,7 +96,7 @@ fn strip_theme(body: &str) -> String {
 
 #[test]
 fn every_registry_recipe_apply_resolves() {
-    let registry = repo_root().join("packages/ui/registry");
+    let registry = repo_root().join("tests/fixtures/registry");
     assert!(
         registry.is_dir(),
         "registry dir not found at {}",
@@ -145,6 +138,6 @@ fn every_registry_recipe_apply_resolves() {
 
     assert!(
         checked > 0,
-        "expected at least one recipe with @apply (button) to be checked"
+        "expected at least one local recipe with @apply (button) to be checked"
     );
 }

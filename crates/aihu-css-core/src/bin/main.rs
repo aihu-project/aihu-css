@@ -23,9 +23,8 @@ fn main() {
         return;
     }
 
-    // Build-time mode: dump the ported animation catalog's class names (tailwind-
-    // animations port doc, Track A Slice 14). The Storybook demo gallery
-    // (`apps/storybook/src/stories/animations-gallery.stories.ts`) reads this to
+    // Build-time mode: dump the ported animation catalog's class names. The
+    // checked-in gallery (`gallery/animations-gallery.generated.ts`) reads this to
     // render one box per animation, so the gallery can never drift from
     // `animations::ANIMATIONS` — no hand-maintained class list, same discipline
     // as Slice 10's `inventory_is_complete` gate.

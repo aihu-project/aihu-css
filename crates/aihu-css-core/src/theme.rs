@@ -3,8 +3,7 @@
 //! The `@theme { --color-primary: oklch(...); }` directive declares design
 //! tokens. We parse it out of an SFC's `@style` block content, register each
 //! `--token: value` pair, and let authored `@theme` blocks override the baked
-//! aihu brand defaults (extracted from `apps/docs/style.css` — the same source
-//! Plan 3's `aihu-default` style pack will use).
+//! aihu brand defaults shared with the built-in style packs.
 //!
 //! Breakpoints (`md:`, `sm:`, …) read from the registry so `@theme` can
 //! override them. `oklch()` and custom properties are emitted directly
@@ -245,7 +244,7 @@ fn parse_theme_declarations(body: &str) -> Vec<(String, String)> {
     out
 }
 
-/// aihu brand tokens, extracted from `apps/docs/style.css` (light theme). Maps
+/// aihu brand tokens for the light theme. Maps
 /// the design-system names to the utility token names the table references
 /// (`--color-primary`, `--color-accent`, `--color-surface`, …).
 ///
@@ -297,8 +296,7 @@ const AIHU_BRAND_TOKENS: &[(&str, &str)] = &[
     ("--radius-md", "8px"),
     ("--radius-lg", "12px"),
     ("--radius-pill", "999px"),
-    // performativeUI port (docs/plans/2026-08-01-performative-ui-port.md §1,
-    // escalations E-P1/E-P2/E-P3 as ruled): three additive tokens, none a
+    // Three additive brand tokens, none a
     // `bg-*`/`text-*`/`border-*` color role (so `is_brand_token` is
     // untouched). `--gradient-brand` is ONE token holding a full
     // `linear-gradient()` value (not three separate stop tokens — E-P1),
@@ -373,8 +371,7 @@ mod tests {
 
     #[test]
     fn performative_ui_tokens_tree_shake_like_every_other_scalar() {
-        // docs/plans/2026-08-01-performative-ui-port.md §1: three additive
-        // tokens (E-P1/E-P2/E-P3 as ruled). They must tree-shake exactly like
+        // These additive tokens must tree-shake exactly like
         // the D4 scalars above — referencing one must not pull in the other
         // two.
         let registry = ThemeRegistry::with_aihu_defaults();

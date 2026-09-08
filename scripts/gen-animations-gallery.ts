@@ -1,44 +1,32 @@
 #!/usr/bin/env bun
 /**
- * gen-animations-gallery.ts — generate the Storybook demo gallery's data
- * (tailwind-animations port doc, Track A Slice 14: "docs + demo gallery
- * rendering all 78 [animations]... real visual regression net").
+ * gen-animations-gallery.ts — generate the local animation gallery data.
  *
- * The gallery lives in `apps/storybook/src/stories/animations-gallery.stories.ts`
- * — a PLAIN HTML story, not a compiled `.aihu` SFC, so its utility classes are
- * never scanned/compiled by Storybook's `aihuCompilerPlugin` (that plugin only
- * processes `.aihu` files — see `.storybook/main.ts`'s doc comment). This
- * script pre-compiles the CSS at generation time instead, invoking the Rust
- * engine binary directly (same pattern as `gen-cn-conflict-map.ts` /
- * `gen-style-packs.ts`):
+ * The checked-in gallery lives under `gallery/`. It is deliberately local to
+ * this package so a standalone checkout can regenerate and review it without
+ * the framework's Storybook app. The script invokes the Rust engine directly,
+ * just like `gen-cn-conflict-map.ts` and `gen-style-packs.ts`.
  *
  *   --dump-animation-classes     → JSON array of every `animations::ANIMATIONS`
  *                                   class name (the gallery's render list)
- *   --dump-animation-gallery-css → the compiled CSS for all of them, PLUS the
- *                                   reduced-motion guard (Flat-mode
- *                                   `compile_classes` alone omits the guard —
- *                                   it's only appended in `OutputMode::Scoped`,
- *                                   the SFC path a plain HTML story never runs)
+ *   --dump-animation-gallery-css → the compiled CSS for all of them, plus the
+ *                                   reduced-motion guard from scoped output.
  *
  * Both are derived from `animations::ANIMATIONS` at generation time, so the
  * gallery can never drift from the real catalog — no hand-maintained class
  * list, the same discipline Slice 10's `inventory_is_complete` gate uses.
  *
- * Run: `bun run gen:animations-gallery` (from packages/css-engine).
+ * Run: `bun run gen:animations-gallery`.
  *   bun scripts/gen-animations-gallery.ts --check  # CI: fail if stale
  *
- * FIXTURE-SCAN MODE (C-FEL-GATE-WIRING-RUNS, same shape as check-moon-graph.ts's
- * `MOON_GRAPH_ROOT` / gen-cn-conflict-map.ts's `CN_MAP_TARGET`).
+ * FIXTURE-SCAN MODE (the same shape as the conflict-map generator's target
+ * override).
  * `ANIMATIONS_GALLERY_CSS_TARGET` / `ANIMATIONS_GALLERY_CLASSES_TARGET` repoint
  * the `--check` comparison at different committed files instead of the real
  * generated targets. `ANIMATIONS_GALLERY_CLASSES_JSON` /
- * `ANIMATIONS_GALLERY_CSS_DUMP`, separately, repoint the INPUT: instead of
- * invoking the Rust binary, read committed fixture files holding the same
- * `--dump-animation-classes` / `--dump-animation-gallery-css` output shapes.
- * Load-bearing, not cosmetic, same reason as gen-cn-conflict-map.ts's
- * `CN_MAP_DUMP_JSON` — check-gate-wiring.ts's own `gate-wiring` CI job runs
- * with no Rust toolchain, so a fixture that shelled out to the real binary
- * would throw on both its red and green runs.
+ * `ANIMATIONS_GALLERY_CSS_DUMP`, separately, repoint the input at committed
+ * fixture files holding the same output shapes, which keeps gate tests
+ * hermetic when a Rust toolchain is unavailable.
  */
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
@@ -47,7 +35,7 @@ import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const pkgRoot = resolve(__dirname, '..')
-const repoRoot = resolve(pkgRoot, '../..')
+const repoRoot = pkgRoot
 
 function resolveBinary(): string {
   const ext = process.platform === 'win32' ? '.exe' : ''
@@ -59,14 +47,14 @@ function resolveBinary(): string {
     if (existsSync(c)) return c
   }
   throw new Error(
-    `aihu-css-compile binary not found. Run \`cargo build --release -p aihu-css-core\` first. Checked: ${candidates.join(', ')}`,
+    `aihu-css-compile binary not found. Run \`cargo build --release\` first. Checked: ${candidates.join(', ')}`,
   )
 }
 
 /**
  * Bounded spawn. An unbounded `execFileSync` against this binary is the same
- * hang that stalled an `apps/docs` build for 10 minutes at 0% CPU (see the
- * spawn-bounds note in `packages/css-engine/src/index.ts`): with no timer armed
+ * hang that stalled a docs build for 10 minutes at 0% CPU (see the
+ * spawn-bounds note in `src/index.ts`): with no timer armed
  * spawnSync's uv loop blocks in kevent with no deadline, forever. These dumps
  * complete in milliseconds, so 60 s is a generous ceiling that still turns a
  * wedged generator into a fast, named failure. `maxBuffer` is explicit because
@@ -88,7 +76,7 @@ const css = process.env.ANIMATIONS_GALLERY_CSS_DUMP
   ? readFileSync(resolve(repoRoot, process.env.ANIMATIONS_GALLERY_CSS_DUMP), 'utf8')
   : execFileSync(resolveBinary(), ['--dump-animation-gallery-css'], DUMP_SPAWN_OPTS)
 
-const storiesDir = resolve(repoRoot, 'apps/storybook/src/stories')
+const storiesDir = resolve(repoRoot, 'gallery')
 const cssTarget = process.env.ANIMATIONS_GALLERY_CSS_TARGET
   ? resolve(repoRoot, process.env.ANIMATIONS_GALLERY_CSS_TARGET)
   : resolve(storiesDir, 'animations-gallery.generated.css')
@@ -98,7 +86,7 @@ const classesTarget = process.env.ANIMATIONS_GALLERY_CLASSES_TARGET
 
 const classesOut = `// AUTO-GENERATED by scripts/gen-animations-gallery.ts — DO NOT EDIT.
 // Source of truth: aihu-css-core \`animations::ANIMATIONS\`. Regenerate with
-// \`bun run gen:animations-gallery\` (from packages/css-engine). Hand-edits
+// \`bun run gen:animations-gallery\`. Hand-edits
 // will be lost.
 
 /** Every ported tailwind-animations class name, in the catalog's own sorted

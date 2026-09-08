@@ -1,0 +1,35 @@
+name: CSS engine CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify CSS engine
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.95.0
+          components: rustfmt
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: cargo test
+      - run: bun run build:rust
+      - run: bun run gen:animations-gallery
+      - run: git diff --exit-code -- gallery src/runtime/cn-conflict-map.generated.ts styles
+      - run: bun run check:lint
+      - run: bun run typecheck
+      - run: bun run test
+      - run: bun run check:cn-map
+      - run: bun run check:animations-gallery
+      - run: bun run build
+      - run: bun pm pack --dry-run

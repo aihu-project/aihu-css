@@ -1,5 +1,4 @@
-/* daisyUI `btn` — transcribed in spirit (not vendored byte-for-byte) per
-   docs/plans/2026-07-26-option-4-daisyui-design.md §6.2's worked example.
+/* daisyUI `btn` — transcribed in spirit (not vendored byte-for-byte).
    Interactivity (press states, disabled semantics) is @aihu/primitives'
    AihuButton (D4 §6.1 step 4); this recipe is appearance only. */
 

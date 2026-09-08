@@ -58,8 +58,7 @@ export const aihuDefault: StylePack = defineStylePack({
     'color-warning-foreground': '#faf8f4',
     'color-neutral': '#363c47',
     'color-neutral-foreground': '#faf8f4',
-    // ── performativeUI port additive tokens (docs/plans/2026-08-01-performative-ui-port.md
-    //    §1, E-P1 as ruled) — one token, not three separate gradient stops.
+    // ── Additive brand token: one gradient value, not three separate stops.
     'gradient-brand': 'linear-gradient(135deg, #c8543a 0%, #d97757 50%, #945f0e 100%)',
     // ── Radius scale ──
     'radius-sm': '4px',

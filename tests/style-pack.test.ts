@@ -65,8 +65,7 @@ const EXPECTED_D4_SCALAR_TOKENS = [
   '--border',
   '--depth',
   '--noise',
-  // performativeUI port additive tokens (docs/plans/2026-08-01-performative-ui-port.md
-  // §1, E-P1/E-P2/E-P3 as ruled) — none is a bg-/text-/border- utility role,
+  // Additive brand tokens — none is a bg-/text-/border- utility role,
   // so these belong here, not in EXPECTED_BRAND_TOKENS.
   '--gradient-brand',
   '--font-serif',
@@ -91,9 +90,7 @@ describe('@aihu/css-engine — aihu-default style pack', () => {
   })
 
   it('declares dark overrides under the dual-keyed dark selector', () => {
-    // Dual-keyed per Founder-decision #3 (data-theme on <html>) while every
-    // shipped `.dark` consumer keeps working — see
-    // docs/plans/2026-07-26-option-4-daisyui-design.md §4.
+    // Dual-keyed so data-theme and shipped `.dark` consumers both keep working.
     expect(css).toContain(`${formatSelectorList(DARK_SELECTOR)} {`)
     expect(css).toContain('.dark,\n[data-theme="dark"] {')
     // The dark block re-declares the core color tokens.

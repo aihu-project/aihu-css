@@ -1,0 +1,40 @@
+{
+  "only": ["rs", "ts", "toml", "json", "md", "yml"],
+  "exclude": ["target", "dist", "coverage", "vendor", "styles/*.css", "gallery/*.css", "**/*.snap"],
+  "depth": 4,
+  "routing": {
+    "subsystems": [
+      {
+        "name": "rust-css-core",
+        "paths": ["crates/aihu-css-core/src", "crates/aihu-css-core/tests"],
+        "keywords": ["aihu-css-core", "expand_apply", "emit_sfc_scoped", "animations"],
+        "docs": ["docs/integration-seams.md"],
+        "note": "Codemap cannot follow the generated recipe include or the vendored animation catalog; edits to those inputs need the Rust test and generation gates."
+      },
+      {
+        "name": "generated-artifacts",
+        "paths": ["src/runtime/cn-conflict-map.generated.ts", "styles", "gallery"],
+        "keywords": [
+          "AUTO-GENERATED",
+          "gen-cn-conflict-map",
+          "gen-style-packs",
+          "gen-animations-gallery"
+        ],
+        "docs": ["README.md"],
+        "note": "Codemap cannot infer generated-from relationships; source edits must be followed by the matching generator and drift check."
+      },
+      {
+        "name": "native-binary-resolution",
+        "paths": [
+          "src/index.ts",
+          "scripts/gen-cn-conflict-map.ts",
+          "scripts/gen-animations-gallery.ts",
+          "tests/resolve-binary.test.ts"
+        ],
+        "keywords": ["AIHU_CSS_COMPILE_BIN", "aihu-css-compile", "target/release"],
+        "docs": ["README.md"],
+        "note": "The runtime and generators share a path contract that is partly string-based, so import edges alone cannot expose a stale target layout."
+      }
+    ]
+  }
+}

@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 // Regression for the silent-hang class of bug (2026-08-07):
 //
-// An `apps/docs` vite build sat 10 minutes at 0.0% CPU. Sampling both sides
+// A Vite docs build sat 10 minutes at 0.0% CPU. Sampling both sides
 // showed the child `aihu-css-compile --ast-json` parked in read() waiting for
 // an EOF on stdin that never arrived, while the parent sat in
 // node::SyncProcessRunner -> uv_run -> uv__io_poll -> kevent, still holding

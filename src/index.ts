@@ -22,7 +22,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 // Maps process.platform + process.arch to the per-platform npm package that
 // ships the prebuilt `aihu-css-compile` executable, plus the binary's filename
 // inside that package. Mirrors @aihu/server/src/native.ts detectPlatform() and
-// the package directory names under packages/css-engine/npm/<platform>/.
+// the package directory names under npm/<platform>/.
 //
 // Unlike @aihu/server (a napi `.node` addon loaded via require), the css engine
 // invokes `aihu-css-compile` as a CLI SUBPROCESS (execFileSync against the
@@ -80,7 +80,7 @@ let _binPath: string | null = null
  *
  * The per-platform packages (`@aihu/css-engine-<platform>`) carry a placeholder
  * `aihu-css-compile` in source; the real prebuilt binary is only injected by
- * the release CI. Once those packages become resolvable in the workspace (e.g.
+ * the release CI. Once those packages become resolvable in a source install (e.g.
  * after a `bun.lock` refresh that pins them as optionalDependencies), a bare
  * `existsSync` would happily return the non-executable placeholder, which then
  * blows up with EACCES inside `spawnSync`/`execFileSync`. So we must verify the
@@ -112,17 +112,10 @@ export function isUsableExecutable(candidate: string): boolean {
  *      `@aihu/compiler`'s `AIHU_COMPILE_BIN` idiom. Lets a caller that already
  *      knows the exact binary it wants (a test harness, another package
  *      pinning its own build) skip resolution entirely.
- *   2. Dev fallback: the monorepo workspace `target/release|debug/` — only
- *      present in a dev clone with a Rust toolchain (`cargo build --release -p
- *      aihu-css-core`). Checked BEFORE the published package: `target/` is a
- *      path relative to this file inside THIS git checkout, so a real
- *      standalone npm consumer's `node_modules/@aihu/css-engine` never has it
- *      — this ordering only ever matters inside the monorepo, where it fixes
- *      a real trap: a stale/out-of-sync per-platform npm package sitting in
- *      `node_modules` would otherwise silently outrank a freshly-built dev
- *      binary, so `cargo build` + a test run would keep exercising old
- *      compiled behavior. (Same failure shape as the compiler's own binary-
- *      resolution trap — see `docs/plans/*-compiler-binary-resolution*`.)
+ *   2. Dev fallback: the checkout's `target/release|debug/` — only present in
+ *      a source clone with a Rust toolchain (`cargo build --release`). Checked
+ *      BEFORE the published package so local builds always exercise the local
+ *      Rust core instead of a stale optional dependency.
  *   3. The per-platform optionalDependency package
  *      (`@aihu/css-engine-<platform>`) shipped to npm consumers — resolved via
  *      `createRequire(...).resolve('<pkg>/package.json')` so it works in both
@@ -145,11 +138,11 @@ function resolveBinary(): string {
 
   const descriptor = detectPlatform()
 
-  // 2. Dev fallback: monorepo workspace target/. Only exists in a dev clone.
+  // 2. Dev fallback: standalone checkout target/. Only exists in a source clone.
   const ext = process.platform === 'win32' ? '.exe' : ''
   const devCandidates = [
-    resolve(__dirname, '../../../target/release', `aihu-css-compile${ext}`),
-    resolve(__dirname, '../../../target/debug', `aihu-css-compile${ext}`),
+    resolve(__dirname, '../target/release', `aihu-css-compile${ext}`),
+    resolve(__dirname, '../target/debug', `aihu-css-compile${ext}`),
   ]
   for (const c of devCandidates) {
     if (existsSync(c)) {
@@ -209,8 +202,8 @@ function buildMissingBinaryError(
       `  To reinstall:\n` +
       `    npm install @aihu/css-engine\n` +
       `    # or: pnpm install   or: bun install\n\n` +
-      `  If you are working in the aihu monorepo, build from source instead:\n` +
-      `    cargo build --release -p aihu-css-core\n` +
+      `  If you are working from a source checkout, build from source instead:\n` +
+      `    cargo build --release\n` +
       `  Checked dev fallback paths: ${devCandidates.join(', ')}`,
   )
 }
@@ -229,7 +222,7 @@ function buildMissingBinaryError(
 // ---------------------------------------------------------------------------
 //
 // OBSERVED FAILURE (2026-08-07, macOS 26.5 / node 22.12, reproduced under load):
-// an `apps/docs` vite build sat for 10 minutes at 0.0% CPU. `ps` showed the
+// a Vite docs build sat for 10 minutes at 0.0% CPU. `ps` showed the
 // build and a child `aihu-css-compile --ast-json` both asleep, neither making
 // progress. Reproduced in a stress harness and sampled both sides:
 //
@@ -258,7 +251,7 @@ function buildMissingBinaryError(
  * Wall-clock ceiling for a single `aihu-css-compile` invocation — a measured
  * floor plus a payload-scaled term, NOT a round number.
  *
- * The floor. Measured on this machine: the largest SFC in `apps/docs` (16 KB
+ * The floor. Measured on this machine: the largest application SFC (16 KB
  * source -> 27.7 KB AST JSON -> 7 KB CSS) compiles in 4-5 ms, and 24 concurrent
  * processes x 60 compiles each never exceeded 5 ms per call. 120 s is ~24,000x
  * the measured per-call cost. That headroom is deliberately absurd: it has to

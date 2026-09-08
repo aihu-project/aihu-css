@@ -1,12 +1,22 @@
 {
-  "extends": "../../tsconfig.base.json",
+  "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
-    "outDir": "./dist",
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
     "noEmit": true,
-    "rootDir": "./src",
-    "declaration": true,
-    "declarationMap": true
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "types": ["bun-types", "node"]
   },
-  "include": ["src/**/*"],
-  "exclude": ["tests/**/*", "dist", "node_modules", "crates"]
+  "include": [
+    "src/**/*.ts",
+    "scripts/**/*.ts",
+    "tests/**/*.ts",
+    "rolldown.config.ts",
+    "vitest.config.ts"
+  ]
 }

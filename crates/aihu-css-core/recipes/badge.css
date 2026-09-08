@@ -1,5 +1,4 @@
-/* daisyUI `badge` — transcribed in spirit (not vendored) per
-   docs/plans/2026-07-26-option-4-daisyui-design.md §6 (proof recipe, Slice 4).
+/* daisyUI `badge` — transcribed in spirit (not vendored).
    The state variants are exactly why D4 §3.4 (E1) added info/success/warning
    to the brand contract — this recipe couldn't exist without them. */
 

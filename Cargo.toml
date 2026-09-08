@@ -1,0 +1,15 @@
+[workspace]
+resolver = "2"
+members = ["crates/aihu-css-core"]
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/aihu-project/aihu-css"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

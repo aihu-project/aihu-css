@@ -2,8 +2,8 @@
 //!
 //! This is the wire-format contract the scanner consumes. It mirrors the
 //! `SfcAst` shape emitted by `@aihu/compiler`'s `compile_to_ast` /
-//! `aihu-compile --ast-json` (see `docs/superpowers/specs/compiler-ast-export-hook.md`
-//! §4.1 / §4.3, CSS-engine spec `22d3a66e` §3 edge #1).
+//! `aihu-compile --ast-json`; the standalone integration contract is documented
+//! in `docs/integration-seams.md`.
 //!
 //! The three `SfcAttr` variants (Static / Binding / Macro) are frozen as part
 //! of the v1.0 stability contract — the scanner's class-extraction correctness

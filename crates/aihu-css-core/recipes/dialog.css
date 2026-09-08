@@ -3,7 +3,7 @@
    vendor/tailwind-animations-8eb93d9/index.css lines 781-877. Unlike the
    performativeUI port, this upstream is real MIT, so the CSS below is a direct
    ADAPTATION of the vendor rules rather than a transcription "in spirit".
-   Track A Slice 12 of docs/plans/2026-08-01-tailwind-animations-port.md.
+   This recipe is the dialog entry/exit family from the vendored animation set.
 
    ── Why this family lives in the RECIPE channel, not tokens.rs ──────────────
    Decision D-A routes the animation catalog through the utility engine because
@@ -62,7 +62,7 @@
    vendor's single `--tw-anim-dialog-start-translate` two-value pair is split
    into scalar `--aihu-anim-dialog-start-x` / `-start-y`. Reason: a centered
    dialog panel must itself use `translate: -50% -50%` for centering (see
-   `packages/ui/registry/dialog/dialog-content.aihu` for why `transform:
+   See the integration seam documentation for why `transform:
    translate(-50%,-50%)` is NOT usable alongside a `scale` entrance — the
    individual `scale` property is applied about the transform-origin, so a
    centering `transform` makes the panel drift by (1-scale)·width/2 mid-

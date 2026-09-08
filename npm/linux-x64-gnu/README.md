@@ -60,7 +60,7 @@ bun add @aihu/css-engine-linux-x64-gnu
 <!-- regenerate: bun scripts/sync-readme.ts (also runs in pre-commit + CI) -->
 
 - [@aihu/css-engine](../../README.md)
-- [Aihu framework root](../../../../README.md)
+- [Aihu CSS Engine repository](https://github.com/aihu-project/aihu-css)
 
 <sub><i>Auto-generated against `@aihu/css-engine-linux-x64-gnu@0.1.17`.</i></sub>
 
@@ -71,7 +71,7 @@ bun add @aihu/css-engine-linux-x64-gnu
 <!-- BEGIN_AUTOGEN: license -->
 <!-- regenerate: bun scripts/sync-readme.ts (also runs in pre-commit + CI) -->
 
-MIT — see [LICENSE](../../../../LICENSE).
+MIT — see [LICENSE](../../LICENSE).
 
 <sub><i>Auto-generated against `@aihu/css-engine-linux-x64-gnu@0.1.17`.</i></sub>
 

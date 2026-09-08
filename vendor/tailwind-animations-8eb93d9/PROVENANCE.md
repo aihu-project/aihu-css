@@ -7,5 +7,5 @@
 - **Copyright holder:** Miguel Ángel Durán
 
 Never edit the files in this directory. Transcription into aihu's own format lives in
-`packages/css-engine/crates/aihu-css-core/src/animations.rs` — see
-`docs/plans/2026-08-01-tailwind-animations-port.md` for the mapping/workflow.
+`crates/aihu-css-core/src/animations.rs`; the source history retains the original
+port commits and the copy is versioned with the engine for reproducible generation.

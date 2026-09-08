@@ -11,7 +11,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 //
 // R6c pinned the per-platform packages (@aihu/css-engine-<platform>) as
 // optionalDependencies, and a bun.lock refresh made their in-source PLACEHOLDER
-// `aihu-css-compile` resolvable inside the workspace. The old resolveBinary()
+// `aihu-css-compile` resolvable inside a source checkout. The old resolveBinary()
 // accepted the candidate on existsSync alone — so it returned a non-executable
 // placeholder and later died with EACCES inside execFileSync, never reaching the
 // dev `target/` fallback. The fix gates the candidate on isUsableExecutable():
@@ -47,10 +47,10 @@ describe('@aihu/css-engine — isUsableExecutable (stub vs real binary)', () => 
   it('accepts the real dev target/ binary (the fallback the engine lands on)', () => {
     const ext = process.platform === 'win32' ? '.exe' : ''
     const real = resolveExisting([
-      resolve(__dirname, '../../../target/release', `aihu-css-compile${ext}`),
-      resolve(__dirname, '../../../target/debug', `aihu-css-compile${ext}`),
+      resolve(__dirname, '../target/release', `aihu-css-compile${ext}`),
+      resolve(__dirname, '../target/debug', `aihu-css-compile${ext}`),
     ])
-    expect(real, 'build it with: cargo build --release -p aihu-css-core').not.toBeNull()
+    expect(real, 'build it with: cargo build --release').not.toBeNull()
     expect(isUsableExecutable(real as string)).toBe(true)
 
     // And a copy of it stays usable (proves it is the executability — not the
@@ -62,7 +62,7 @@ describe('@aihu/css-engine — isUsableExecutable (stub vs real binary)', () => 
   })
 
   it('compile() still works — resolveBinary() lands on a usable binary', () => {
-    // With the platform stub present in the workspace AND target/ built, this
+    // With the platform stub present AND target/ built, this
     // must NOT throw EACCES: resolveBinary() rejects the stub and falls through
     // (or, on a machine whose stub carries a real exe, uses that). Either way it
     // resolves a usable executable and produces CSS.

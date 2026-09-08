@@ -20,20 +20,13 @@
  * 2. `dark`    → `.dark, [data-theme="dark"] { … }`     — the dark overrides.
  * 3. `themes`  → `[data-theme="<name>"] { … }` each     — the named catalog.
  *
- * The dark block is **dual-keyed** on purpose. `docs/plans/2026-07-23-use-parity-
- * and-daisyui.md` Founder-decision #3 ratifies daisyUI's `data-theme` attribute
- * on `<html>` as the theme-switching convention, while every shipped consumer
- * today keys dark off a `.dark` class at `:root`. Emitting both selectors in one
- * comma-list makes `<html data-theme="dark">` resolve correct token values
- * immediately without invalidating a single `.dark` consumer — the transition
- * step that lets the two conventions coexist instead of requiring a flag day.
+ * The dark block is **dual-keyed** on purpose. Consumers may use either
+ * daisyUI-compatible `data-theme="dark"` or the established `.dark` class at
+ * `:root`; emitting both selectors keeps either convention working without a
+ * migration step.
  *
- * See `docs/plans/2026-07-26-option-4-daisyui-design.md` §4 for the full
- * migration sequence, and §4.3 in particular for the one thing this does NOT
- * yet migrate: `dark:`-variant *utility rules* are still gated on `:root.dark`
- * by the Rust emitter (`crates/aihu-css-core/src/emit.rs:189-200`), so a page on
- * `data-theme="dark"` alone gets correct token values but not `dark:`-variant
- * utilities until that slice lands.
+ * The Rust emitter still gates `dark:` utility rules on `:root.dark`, so a page
+ * using only `data-theme="dark"` receives token values but not those variants.
  */
 
 /** A design-token map: `name` → CSS value. Names omit the leading `--`. */

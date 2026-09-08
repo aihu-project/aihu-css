@@ -1,12 +1,8 @@
 //! Ported animation catalog — transcribed from
 //! `vendor/tailwind-animations-<SHA>/index.css` (MIT, © Miguel Ángel Durán).
-//! See `docs/plans/2026-08-01-tailwind-animations-port.md` §2 for why these
-//! live in the utility engine rather than the recipe channel (D-A: recipes
-//! silently drop top-level `@keyframes` and have no variant support today).
-//!
-//! This is Slice 1 of the roadmap in that doc — an 8-animation, 4-cluster
-//! proof batch. Later slices append more entries; the table MUST stay sorted
-//! by `class` so parallel slices don't conflict when inserting.
+//! The catalog is kept in sync with the checked-in vendor source and the
+//! generated gallery check. The table MUST stay sorted by `class` so updates
+//! remain deterministic.
 
 use std::collections::BTreeSet;
 
@@ -494,7 +490,7 @@ mod tests {
         // extra entry as long as the COUNT still happens to match.
         let manifest_dir = env!("CARGO_MANIFEST_DIR");
         let vendor_path = std::path::Path::new(manifest_dir)
-            .join("../../../../vendor/tailwind-animations-8eb93d9/index.css");
+            .join("../../vendor/tailwind-animations-8eb93d9/index.css");
         let vendor_src = std::fs::read_to_string(&vendor_path).unwrap_or_else(|e| {
             panic!("failed to read vendored source at {vendor_path:?}: {e}")
         });

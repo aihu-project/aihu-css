@@ -910,8 +910,8 @@ fn fixed_utility(class_name: &str) -> Option<&'static str> {
         "animate-pulse" => "animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;",
         "animate-bounce" => "animation: bounce 1s infinite;",
 
-        // tailwind-animations port, Slice 2 (docs/plans/2026-08-01-tailwind-animations-port.md) —
-        // closed-keyword modifier families for the ported catalog. Direction/
+        // Closed-keyword modifier families for the vendored animation catalog.
+        // Direction/
         // play-state/fill-mode are fixed sets (not parameterized); delay/
         // duration/iteration-count are parameterized (see parameterized_utility).
         "animate-direction-normal" => "animation-direction: normal;",
@@ -947,7 +947,7 @@ fn fixed_utility(class_name: &str) -> Option<&'static str> {
         // pair; aihu splits it into scalar `-start-x`/`-start-y` so a centered
         // panel can compose it into `calc(-50% + var(…))` alongside its own
         // centering translate — see `recipes/dialog.css` §"Token renaming"
-        // and `packages/ui/registry/dialog/dialog-content.aihu`.
+        // and the dialog integration seam documented in `docs/integration-seams.md`.
         //
         // `0px`, not `0`: these land inside a `calc()` in the registry
         // component, where a unitless zero added to a percentage is invalid.

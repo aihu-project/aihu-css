@@ -240,7 +240,7 @@ describe('@aihu/css-engine — motion utilities (Round 2)', () => {
 // full TS bridge (`compileToAst` → native binary → scoped CSS), the same path
 // the Vite plugin uses. If the native binary is unavailable these will throw at
 // `compileSfc`; the suite follows the existing sfc-e2e.test.ts convention of
-// calling `compileSfc` directly (the workspace test run builds the binary).
+// calling `compileSfc` directly (the source test run builds the binary).
 describe('@aihu/css-engine — group/peer relational variants (round 2)', () => {
   it('group-hover: emits an ancestor `.group:hover` descendant selector', () => {
     const source = `@template {

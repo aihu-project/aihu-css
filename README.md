@@ -4,14 +4,15 @@
 
 aihu CSS engine — Tailwind v4 hard fork with WC-native scoped output.
 
-Part of the **compiler + toolchain** layer of Aihu. Build-time only — does not ship to the client. The compiler reads `.aihu` SFC source (per the [Block Structure spec](../../docs/superpowers/specs/2026-05-02-spec-block-structure.md)) and emits standards-compliant Web Components.
+Part of the **compiler + toolchain** layer of Aihu. Build-time only — does not ship to the client. The compiler reads `.aihu` SFC source and emits standards-compliant Web Components.
 
 <!-- BEGIN_HANDWRITTEN: prose -->
 > aihu CSS engine — a hard fork of Tailwind v4 with Web-Component-native scoped output, AST-aware scanning, and progressive feature emission.
 
 **Status:** v1 — shipped. The fork identity, AST scanner, scoped emitter, WC-native
 variants, progressive features, both style packs, and the `cn()` runtime helper
-are all landed. See [`docs/superpowers/specs/2026-05-10-aihu-css-engine-and-primitives-design.md`](../../docs/superpowers/specs/2026-05-10-aihu-css-engine-and-primitives-design.md) for the full design.
+are all landed. See [`docs/integration-seams.md`](docs/integration-seams.md) for
+the boundary between this standalone engine and the framework repository.
 
 ### Status by capability
 
@@ -31,8 +32,8 @@ are all landed. See [`docs/superpowers/specs/2026-05-10-aihu-css-engine-and-prim
 executable (the `aihu-css-core` Rust crate). For npm consumers the binary ships
 as a per-platform `optionalDependencies` package
 (`@aihu/css-engine-{darwin-arm64,darwin-x64,linux-x64-gnu,win32-x64-msvc}`),
-resolved automatically at build time — no Rust toolchain required. In a monorepo
-dev clone the engine falls back to the workspace `target/release` binary.
+resolved automatically at build time — no Rust toolchain required. In a source
+clone the engine falls back to the checkout's `target/release` binary.
 
 ### Enabling utility-class CSS in a user project
 
@@ -163,20 +164,14 @@ consumers the binary ships as a per-platform `optionalDependencies` package
 (e.g. `@aihu/css-engine-darwin-arm64`) and is auto-resolved by your package
 manager. If resolution fails (offline install, unsupported platform), the
 compiler emits a one-shot console warning, the build succeeds, and utility
-rules are silently omitted from the bundle CSS. In monorepo dev clones the
-fallback is `target/release/aihu-css-compile` (run `cargo build --release -p
-aihu-css-core`).
-
-See [`examples/css-engine-utility/`](../../examples/css-engine-utility) for a
-minimal end-to-end demonstration, including `scripts/check-utility-css.ts`
-which greps the built CSS asset for the expected `.flex{display:flex}` rule —
-a useful pattern to copy into your own project's CI.
+rules are silently omitted from the bundle CSS. In source clones the fallback
+is `target/release/aihu-css-compile` (run `cargo build --release`).
 
 ### Local development
 
 ```bash
-# Build Rust core (run from repo root or this dir)
-cargo build --release -p aihu-css-core
+# Build Rust core
+cargo build --release
 
 # Build TS layer
 bun run build
@@ -263,9 +258,9 @@ bun add @aihu/css-engine
 <!-- BEGIN_AUTOGEN: see-also -->
 <!-- regenerate: bun scripts/sync-readme.ts (also runs in pre-commit + CI) -->
 
-- [CSS Engine + Primitives design spec](../../docs/superpowers/specs/2026-05-10-aihu-css-engine-and-primitives-design.md)
-- [@aihu/compiler](../compiler)
-- [Aihu framework root](../../README.md)
+- [Integration seams](docs/integration-seams.md)
+- [@aihu/compiler](https://www.npmjs.com/package/@aihu/compiler)
+- [Aihu CSS Engine repository](https://github.com/aihu-project/aihu-css)
 
 <sub><i>Auto-generated against `@aihu/css-engine@0.6.1`.</i></sub>
 
@@ -276,7 +271,7 @@ bun add @aihu/css-engine
 <!-- BEGIN_AUTOGEN: license -->
 <!-- regenerate: bun scripts/sync-readme.ts (also runs in pre-commit + CI) -->
 
-MIT — see [LICENSE](../../LICENSE).
+MIT — see [LICENSE](LICENSE).
 
 <sub><i>Auto-generated against `@aihu/css-engine@0.6.1`.</i></sub>
 

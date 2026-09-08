@@ -1,9 +1,8 @@
 //! aihu-css-core — CSS engine bootstrap.
 //!
-//! See `docs/superpowers/specs/2026-05-10-aihu-css-engine-and-primitives-design.md`
-//! for the full design. This bootstrap implementation supports a fixed subset
-//! of utility classes (see tokens.rs); Plan 2 wires the AST scanner; Plan 3
-//! adds variants and progressive features.
+//! See `README.md` and `docs/integration-seams.md` for the package contract.
+//! This implementation supports a fixed, tested vocabulary of utility classes,
+//! scoped variants, progressive features, and the native compiler binary.
 
 pub mod animations;
 pub mod apply;

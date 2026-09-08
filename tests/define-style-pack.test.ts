@@ -28,10 +28,8 @@ describe('@aihu/css-engine — defineStylePack()', () => {
     expect(css).toContain('--color-primary: #3fc;')
   })
 
-  // Founder-decision #3 (2026-07-23) ratifies `data-theme` on `<html>` as the
-  // theme convention; every shipped consumer today keys dark off `.dark`. The
-  // dark block is dual-keyed so both resolve, and neither convention has to
-  // move on a flag day. See docs/plans/2026-07-26-option-4-daisyui-design.md §4.
+  // The dark block is dual-keyed so both the data-theme and .dark conventions
+  // resolve without requiring consumers to migrate together.
   it('dual-keys the dark block on BOTH .dark and [data-theme="dark"]', () => {
     const css = defineStylePack({
       name: 'acme',
