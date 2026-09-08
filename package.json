@@ -42,7 +42,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.14",
-    "bun-types": "latest",
+    "bun-types": "1.4.2",
     "@types/node": "^20.16.5",
     "jsdom": "^25.0.1",
     "rolldown": "^1.0.0-rc.17",
@@ -72,6 +72,9 @@
     "format": "biome format --write .",
     "check:lint": "biome ci .",
     "check:ci": "bun run check:lint && bun run typecheck && bun run check:platform-pins && bun run test && bun run test:rust && bun run build && bun run check:animations-gallery && bun pm pack --dry-run",
+    "verify:pack": "node scripts/verify-pack.mjs",
+    "consumer:smoke": "node scripts/consumer-smoke.mjs",
+    "test:release-contract": "node scripts/release-contract-regression.mjs",
     "prepublishOnly": "bun run build"
   },
   "description": "aihu CSS engine \u2014 Tailwind v4 hard fork with WC-native scoped output.",

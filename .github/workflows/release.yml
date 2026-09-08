@@ -7,9 +7,13 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
+  id-token: write
 
 env:
-  NPM_REGISTRY: https://registry.npmjs.org
+  NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+  NPM_CONFIG_USERCONFIG: /tmp/aihu-css-npmrc-oidc-only
+  DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
 
 jobs:
   verify:
@@ -17,25 +21,39 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772
         with:
           toolchain: 1.95.0
           components: rustfmt
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: latest
-      - uses: actions/setup-node@v4
+          bun-version: 1.3.8
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 22
-          registry-url: ${{ env.NPM_REGISTRY }}
+          node-version: 22.14.0
       - name: Install and verify
         run: |
-          bun install --frozen-lockfile
+          printf '%s\n' 'registry=https://registry.npmjs.org/' > "$NPM_CONFIG_USERCONFIG"
+          npm install --global npm@11.5.1 --ignore-scripts
+          bun install --frozen-lockfile --ignore-scripts
+          bun run test:release-contract
           bun run check:platform-pins
           bun run check:ci
+      - name: Bind release to merged default branch
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$DEFAULT_BRANCH"
+          git merge-base --is-ancestor "$RELEASE_SHA" FETCH_HEAD
+      - name: Verify reviewed merged release commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: node scripts/assert-reviewed-release.mjs
       - name: Verify tag matches the host package
         env:
           RELEASE_TAG: ${{ github.ref_name }}
@@ -46,6 +64,7 @@ jobs:
             echo "::error::tag $RELEASE_TAG must match @aihu/css-engine@$actual"
             exit 1
           fi
+          test "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" = "${{ github.sha }}"
 
   build-native:
     name: Build ${{ matrix.platform }} binary
@@ -73,8 +92,8 @@ jobs:
             extension: '.exe'
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772
         with:
           toolchain: 1.95.0
           targets: ${{ matrix.target }}
@@ -90,7 +109,7 @@ jobs:
           cp "target/${{ matrix.target }}/release/aihu-css-compile${{ matrix.extension }}" \
             "staging/${{ matrix.platform }}/aihu-css-compile${{ matrix.extension }}"
           test -s "staging/${{ matrix.platform }}/aihu-css-compile${{ matrix.extension }}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: css-native-${{ matrix.platform }}
           path: staging/${{ matrix.platform }}
@@ -99,8 +118,10 @@ jobs:
   publish-native:
     name: Publish native packages
     needs: build-native
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
+    env:
+      NPM_CONFIG_USERCONFIG: .npmrc
     permissions:
       contents: read
       id-token: write
@@ -110,15 +131,28 @@ jobs:
         include:
           - platform: darwin-arm64
             binary: aihu-css-compile
+            runner: macos-14
+            os: darwin
+            cpu: arm64
           - platform: darwin-x64
             binary: aihu-css-compile
+            runner: macos-15-intel
+            os: darwin
+            cpu: x64
           - platform: linux-x64-gnu
             binary: aihu-css-compile
+            runner: ubuntu-22.04
+            os: linux
+            cpu: x64
+            libc: glibc
           - platform: win32-x64-msvc
             binary: aihu-css-compile.exe
+            runner: windows-2022
+            os: win32
+            cpu: x64
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: css-native-${{ matrix.platform }}
           path: staging/${{ matrix.platform }}
@@ -128,24 +162,38 @@ jobs:
         run: chmod 0755 "staging/${{ matrix.platform }}/${{ matrix.binary }}"
       - name: Validate staged native artifact
         shell: bash
-        run: test -s "staging/${{ matrix.platform }}/${{ matrix.binary }}"
-      - uses: actions/setup-node@v4
+        run: |
+          test -s "staging/${{ matrix.platform }}/${{ matrix.binary }}"
+          test "$(node -p "JSON.stringify(require('./staging/${{ matrix.platform }}/package.json').os)")" = '["${{ matrix.os }}"]'
+          test "$(node -p "JSON.stringify(require('./staging/${{ matrix.platform }}/package.json').cpu)")" = '["${{ matrix.cpu }}"]'
+          if [ -n "${{ matrix.libc || '' }}" ]; then test "$(node -p "JSON.stringify(require('./staging/${{ matrix.platform }}/package.json').libc)")" = '["${{ matrix.libc }}"]'; fi
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 22
-          registry-url: ${{ env.NPM_REGISTRY }}
-      - name: Publish native package if its exact version is new
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          node-version: 22.14.0
+      - name: Prepare OIDC-only npm config
+        shell: bash
+        run: printf '%s\n' 'registry=https://registry.npmjs.org/' > "$NPM_CONFIG_USERCONFIG"
+      - name: Pin npm for trusted publishing
+        shell: bash
+        run: npm install --global npm@11.5.1 --ignore-scripts
+      - name: Reject classic npm authentication
+        shell: bash
+        run: node scripts/check-oidc-auth.mjs
+      - name: Pack, consume, and publish exact native tarball
         shell: bash
         run: |
           set -euo pipefail
-          package="$(node -p "require('./staging/${{ matrix.platform }}/package.json').name")"
-          version="$(node -p "require('./staging/${{ matrix.platform }}/package.json').version")"
-          if npm view "$package@$version" version --registry "$NPM_REGISTRY" >/dev/null 2>&1; then
-            echo "$package@$version already exists; keeping the release idempotent"
-          else
-            npm publish "staging/${{ matrix.platform }}" --access public --registry "$NPM_REGISTRY"
-          fi
+          root="staging/${{ matrix.platform }}"
+          package="$(node -p "require('./$root/package.json').name")"
+          pack_dir="$RUNNER_TEMP/css-native-pack-${{ matrix.platform }}"
+          mkdir -p "$pack_dir"
+          PACK_DIR="$pack_dir" node scripts/verify-pack.mjs "$root"
+          pack_path="$(node -e "const fs=require('node:fs'),path=require('node:path'); const d=process.argv[1]; const xs=fs.readdirSync(d).filter((x)=>x.endsWith('.tgz')); if(xs.length!==1) process.exit(1); process.stdout.write(path.join(d,xs[0]))" "$pack_dir")"
+          consumer="$(mktemp -d)"
+          (cd "$consumer" && npm init -y >/dev/null && npm install --ignore-scripts --no-package-lock --no-audit --no-fund "$pack_path" >/dev/null)
+          test -s "$consumer/node_modules/$package/${{ matrix.binary }}"
+          node scripts/assert-unpublished.mjs "$root"
+          npm publish "$pack_path" --access public --provenance --registry "$NPM_CONFIG_REGISTRY"
 
   publish-host:
     name: Publish host package
@@ -156,28 +204,35 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772
         with:
           toolchain: 1.95.0
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: latest
-      - uses: actions/setup-node@v4
+          bun-version: 1.3.8
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 22
-          registry-url: ${{ env.NPM_REGISTRY }}
-      - name: Build and publish host package
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          node-version: 22.14.0
+      - name: Prepare OIDC-only npm config
+        run: printf '%s\n' 'registry=https://registry.npmjs.org/' > "$NPM_CONFIG_USERCONFIG"
+      - name: Pin npm for trusted publishing
+        run: npm install --global npm@11.5.1 --ignore-scripts
+      - name: Reject classic npm authentication
+        run: node scripts/check-oidc-auth.mjs
+      - name: Build and validate host package
         run: |
-          bun install --frozen-lockfile
+          bun install --frozen-lockfile --ignore-scripts
+          bun run test:release-contract
           bun run check:platform-pins
           bun run build
-          package="$(node -p "require('./package.json').name")"
-          version="$(node -p "require('./package.json').version")"
-          if npm view "$package@$version" version --registry "$NPM_REGISTRY" >/dev/null 2>&1; then
-            echo "$package@$version already exists; keeping the release idempotent"
-          else
-            npm publish . --access public --registry "$NPM_REGISTRY"
-          fi
+      - name: Confirm registry returns E404 only
+        run: node scripts/assert-unpublished.mjs
+      - name: Capture and validate one exact tarball
+        env:
+          PACK_DIR: ${{ runner.temp }}/aihu-css-pack
+        run: node scripts/verify-pack.mjs
+      - name: Validate isolated consumer
+        run: node scripts/consumer-smoke.mjs "$AIHU_PACK_PATH"
+      - name: Publish exact validated tarball with OIDC provenance
+        run: npm publish "$AIHU_PACK_PATH" --access public --provenance --registry "$NPM_CONFIG_REGISTRY"
