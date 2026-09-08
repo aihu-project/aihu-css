@@ -72,6 +72,8 @@
     "format": "biome format --write .",
     "check:lint": "biome ci .",
     "check:ci": "bun run check:lint && bun run typecheck && bun run check:platform-pins && bun run test && bun run test:rust && bun run build && bun run check:animations-gallery && bun pm pack --dry-run",
+    "verify:pack": "node scripts/verify-pack.mjs",
+    "consumer:smoke": "node scripts/consumer-smoke.mjs",
     "prepublishOnly": "bun run build"
   },
   "description": "aihu CSS engine \u2014 Tailwind v4 hard fork with WC-native scoped output.",
