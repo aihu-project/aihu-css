@@ -394,7 +394,20 @@ pub fn emit_sfc_scoped_channels(ast: &SfcAst) -> Result<ScopedCssChannels, Compi
     if let Some(style) = &ast.style {
         let theme_bodies = extract_theme_blocks(&style.content);
         if !theme_bodies.is_empty() {
-            theme.apply_theme_block(&theme_bodies);
+            // A present `@theme { … }` that registers nothing (empty,
+            // comment-only, or otherwise malformed) previously fell back to
+            // the built-in aihu-default tokens with no signal that the
+            // authored theme was discarded. Hard-error instead — silently
+            // reverting to defaults is exactly the failure mode this exists
+            // to prevent.
+            if theme.apply_theme_block(&theme_bodies) == 0 {
+                return Err(CompileError::MalformedTheme {
+                    detail: "the @theme block registered zero --custom-property \
+                             declarations; falling back to the built-in defaults would \
+                             silently discard the authored theme"
+                        .to_string(),
+                });
+            }
         }
     }
 
