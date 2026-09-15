@@ -223,9 +223,40 @@ pub fn extract_theme_blocks(style_content: &str) -> String {
     bodies
 }
 
-/// Parse `--name: value;` declarations from a CSS body. Tolerates whitespace,
-/// comments are NOT stripped (kept simple); values keep `oklch(...)` intact.
+/// Strip `/* ... */` CSS comments from `input`. A comment is dropped
+/// entirely rather than replaced with a space — the surrounding whitespace
+/// in authored CSS already separates tokens, and callers here split on `;`
+/// so no separator is needed either way. An unterminated comment consumes
+/// the rest of the input (mirrors how a CSS parser would treat it: there is
+/// no valid content after an unclosed `/*`).
+fn strip_css_comments(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    let mut chars = input.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '/' && chars.peek() == Some(&'*') {
+            chars.next(); // consume the '*'
+            let mut prev = '\0';
+            for c2 in chars.by_ref() {
+                if prev == '*' && c2 == '/' {
+                    break;
+                }
+                prev = c2;
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+/// Parse `--name: value;` declarations from a CSS body. Tolerates whitespace
+/// and `/* ... */` comments anywhere (leading, trailing, between or inside
+/// declarations) — comments are stripped before splitting so a comment
+/// preceding a declaration can no longer glue onto its name and make it fail
+/// the `--` prefix check below (the cause of a previously silent
+/// whole-theme drop: see the regression test pinning this).
 fn parse_theme_declarations(body: &str) -> Vec<(String, String)> {
+    let body = strip_css_comments(body);
     let mut out = Vec::new();
     for decl in body.split(';') {
         let decl = decl.trim();
@@ -392,5 +423,49 @@ mod tests {
         assert!(out.contains("--gradient-brand:"), "{out}");
         assert!(!out.contains("--font-serif"), "unreferenced token leaked:\n{out}");
         assert!(!out.contains("--ease-brand"), "unreferenced token leaked:\n{out}");
+    }
+
+    // Pins the exact repro from the issue: a comment inside `@theme { }`
+    // used to glue onto the following declaration's name (the naive
+    // `split(';')` + `split_once(':')` parse saw `/* brand */\n
+    // --color-primary` as the property name, which fails the `--` prefix
+    // check and drops the declaration), silently reverting the whole
+    // registered theme to the built-in `aihu-default` value.
+    #[test]
+    fn a_comment_inside_theme_block_does_not_drop_the_declaration() {
+        let mut registry = ThemeRegistry::with_aihu_defaults();
+        assert_eq!(registry.get("--color-primary"), Some("#1a1d24"));
+
+        let registered =
+            registry.apply_theme_block("\n  /* brand */\n  --color-primary: #ff00aa;\n");
+        assert_eq!(registered, 1, "the declaration after the comment was dropped");
+        assert_eq!(registry.get("--color-primary"), Some("#ff00aa"));
+    }
+
+    #[test]
+    fn comments_anywhere_in_a_theme_block_are_tolerated() {
+        let mut registry = ThemeRegistry::empty();
+        let registered = registry.apply_theme_block(
+            "/* leading */\n\
+             --color-primary: #ff00aa; /* trailing on same decl */\n\
+             /* between declarations */\n\
+             --color-accent: #123456;\n\
+             --color-surface: #abcdef; /* trailing */",
+        );
+        assert_eq!(registered, 3);
+        assert_eq!(registry.get("--color-primary"), Some("#ff00aa"));
+        assert_eq!(registry.get("--color-accent"), Some("#123456"));
+        assert_eq!(registry.get("--color-surface"), Some("#abcdef"));
+    }
+
+    #[test]
+    fn a_comment_only_theme_block_registers_zero_tokens() {
+        // Confirms the parser's half of the "fail loudly on zero tokens"
+        // acceptance criterion: the caller (emit.rs) is the one that turns
+        // this into a hard error, but it can only do so because the count
+        // it gets back is honest.
+        let mut registry = ThemeRegistry::with_aihu_defaults();
+        let registered = registry.apply_theme_block("/* nothing but a note */");
+        assert_eq!(registered, 0);
     }
 }

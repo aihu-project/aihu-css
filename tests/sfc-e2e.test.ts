@@ -99,4 +99,30 @@ describe('@aihu/css-engine — compileSfc end-to-end (AST → scoped CSS)', () =
 @template { <div class="bg-primary">x</div> }`
     expect(() => compileSfc(source, 'Broken.aihu')).toThrow(/malformed @theme/)
   })
+
+  // Regression for a comment inside `@theme { }` silently discarding the
+  // whole authored theme (falls back to the built-in `aihu-default` token
+  // with no error and no warning — see issue #6).
+  it('honors a @theme token even when a comment precedes it', () => {
+    const source = `@style {
+  @theme {
+    /* brand */
+    --color-primary: #ff00aa;
+  }
+}
+@template { <div class="bg-primary">x</div> }`
+    const css = compileSfc(source, 'ThemedWithComment.aihu')
+    expect(css).toContain('--color-primary: #ff00aa')
+    expect(css).not.toContain('#1a1d24') // the aihu-default this used to silently fall back to
+  })
+
+  it('throws instead of silently falling back to defaults when @theme registers zero tokens', () => {
+    const source = `@style {
+  @theme {
+    /* nothing but a note, no declarations */
+  }
+}
+@template { <div class="bg-primary">x</div> }`
+    expect(() => compileSfc(source, 'EmptyTheme.aihu')).toThrow(/zero.*declarations/)
+  })
 })
