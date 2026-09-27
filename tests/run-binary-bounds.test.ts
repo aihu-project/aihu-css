@@ -36,6 +36,13 @@ writeFileSync(
     "  head -c \"$FAKE_BYTES\" /dev/zero | tr '\\000' 'a'",
     '  exit 0',
     'fi',
+    '# Mirrors a loaded/slow-starting reader: does not touch stdin for a beat.',
+    'if [ -n "$FAKE_SLOW_READ" ]; then',
+    '  sleep 1',
+    '  cat > /dev/null',
+    '  echo ok',
+    '  exit 0',
+    'fi',
     'echo ok',
   ].join('\n'),
 )
@@ -102,6 +109,30 @@ describe('@aihu/css-engine — runBinary is bounded', () => {
       process.env.FAKE_BYTES = String(2 * 1024 * 1024)
       const out = compile(['bg-primary'])
       expect(out.length).toBeGreaterThan(1024 * 1024)
+    })
+  })
+
+  describe('stdin delivery', () => {
+    afterAll(() => {
+      delete process.env.FAKE_SLOW_READ
+    })
+
+    it('does not stall on a slow-starting reader, even for a payload bigger than a pipe buffer', () => {
+      process.env.FAKE_SLOW_READ = '1'
+      // Bigger than the ~64 KiB default pipe buffer this bug class depends
+      // on: a pipe-backed stdin would need the parent to keep writing past
+      // that point, which is exactly the write-readiness event the original
+      // bug (see the comment atop this file) sometimes never got.
+      const bigClass = 'x'.repeat(300_000)
+      const startedAt = Date.now()
+      // The fake binary sleeps a full second before it even looks at stdin.
+      // stdin is now a file descriptor, so the child's own pace has no
+      // bearing on whether the parent's side of the handoff completes.
+      const out = compile([bigClass])
+      expect(out.trim()).toBe('ok')
+      // Comfortably below the 120s floor either way — this asserts the call
+      // isn't secretly riding the timeout to get there.
+      expect(Date.now() - startedAt).toBeLessThan(10_000)
     })
   })
 })

@@ -1,6 +1,17 @@
 import { execFileSync } from 'node:child_process'
-import { accessSync, constants, existsSync, statSync } from 'node:fs'
+import { randomBytes } from 'node:crypto'
+import {
+  accessSync,
+  closeSync,
+  constants,
+  existsSync,
+  openSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { createRequire } from 'node:module'
+import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { type AihuCssProvider, compileToAst } from '@aihu/compiler'
@@ -248,6 +259,20 @@ function buildMissingBinaryError(
 // This is intermittent and load-dependent — it is not a pipe-buffer capacity
 // problem (20 MB of stdin against 200 KB each of stdout+stderr round-trips
 // cleanly on both node and bun).
+//
+// FOLLOW-UP (2026-09-27): `timeout` only bounds the stall, it doesn't prevent
+// it — a build still sits idle for the full timeout before failing. The stall
+// is specific to piping `input` through spawnSync: the parent has to WRITE
+// that pipe, and it's the write side's readiness event that the loop
+// sometimes never delivers. `runBinary` now sidesteps the write side
+// entirely by feeding the child's stdin from a real file descriptor (see
+// `withStdinFile` below) instead of a pipe. A file has no "write end" for the
+// parent to hold open and no writable-readiness event to wait for — the
+// kernel serves bytes to the child's read() directly, on the child's own
+// schedule, so EOF is inherent to the file's length rather than dependent on
+// the parent ever finishing a write. `timeout`/`maxBuffer`/`killSignal`
+// remain as a bound against a genuinely wedged or slow compile, but they are
+// no longer the mechanism relied on for the common case.
 
 /**
  * Wall-clock ceiling for a single `aihu-css-compile` invocation — a measured
@@ -298,6 +323,42 @@ function compileTimeoutMs(inputBytes: number): number {
 }
 
 /**
+ * Write `input` to a private temp file and hand back an open READ file
+ * descriptor for it, cleaning up both the fd and the file once `fn` returns
+ * or throws.
+ *
+ * This is the fix for the spawn stall documented above: `execFileSync`'s
+ * `input` option feeds the child through a PIPE that the parent must write,
+ * and it is specifically the parent's write side whose readiness event
+ * spawnSync's private uv loop sometimes never delivers. A file descriptor has
+ * no write side for the parent to hold — the kernel serves bytes to the
+ * child's `read()` directly, at whatever pace the child reads them, and EOF
+ * falls out of the file's length rather than depending on the parent
+ * finishing anything. Slow or loaded children are therefore no longer a
+ * stall risk; `runBinary`'s `timeout` remains only as a bound against a
+ * genuinely wedged or pathologically slow compile.
+ */
+function withStdinFile<T>(input: string, fn: (stdinFd: number) => T): T {
+  const path = join(
+    tmpdir(),
+    `aihu-css-compile-${process.pid}-${randomBytes(8).toString('hex')}.json`,
+  )
+  writeFileSync(path, input, 'utf-8')
+  const fd = openSync(path, 'r')
+  try {
+    return fn(fd)
+  } finally {
+    closeSync(fd)
+    try {
+      unlinkSync(path)
+    } catch {
+      // Best effort: a concurrent cleanup or a restrictive filesystem must not
+      // fail the compile that already succeeded or failed on its own terms.
+    }
+  }
+}
+
+/**
  * Spawn the native compiler, returning stdout on success. On a non-zero exit
  * (the binary's R-RESULT error path) throw an `Error` carrying the binary's
  * stderr message rather than letting `execFileSync`'s opaque status error
@@ -308,19 +369,22 @@ function compileTimeoutMs(inputBytes: number): number {
  * explicit `maxBuffer`. `killSignal: 'SIGKILL'` because the whole point is that
  * nothing survives — a SIGTERM-ignoring or already-wedged child is exactly the
  * process that was found still alive 2.5 days later.
+ *
+ * stdin is fed from a file descriptor, not a pipe — see `withStdinFile`.
  */
 function runBinary(bin: string, args: string[], input: string): string {
   const timeoutMs = compileTimeoutMs(input.length)
   const startedAt = Date.now()
   try {
-    return execFileSync(bin, args, {
-      input,
-      encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-      timeout: timeoutMs,
-      maxBuffer: COMPILE_MAX_BUFFER,
-      killSignal: 'SIGKILL',
-    })
+    return withStdinFile(input, (stdinFd) =>
+      execFileSync(bin, args, {
+        stdio: [stdinFd, 'pipe', 'pipe'],
+        encoding: 'utf-8',
+        timeout: timeoutMs,
+        maxBuffer: COMPILE_MAX_BUFFER,
+        killSignal: 'SIGKILL',
+      }),
+    )
   } catch (err) {
     const e = err as { code?: string; stderr?: Buffer | string; message?: string }
     const elapsedMs = Date.now() - startedAt
@@ -334,15 +398,12 @@ function runBinary(bin: string, args: string[], input: string): string {
       throw new Error(
         `[@aihu/css-engine] CSS compile TIMED OUT after ${timeoutMs} ms and the child was killed.\n\n` +
           `${where}\n\n` +
-          `  This is the known spawn stall, not a slow compile: the compiler normally\n` +
-          `  finishes in single-digit milliseconds. The child parks in read() waiting for\n` +
-          `  an EOF on stdin that the parent's spawnSync loop never delivers, so without\n` +
-          `  this timeout the build would hang at 0% CPU indefinitely.\n\n` +
+          `  The compiler normally finishes in single-digit milliseconds, so this is not\n` +
+          `  an ordinarily slow compile. stdin is fed from a file descriptor (not a pipe),\n` +
+          `  so this is no longer the known parent-side spawn stall — it points at the\n` +
+          `  binary itself being wedged or pathologically slow.\n\n` +
           `  What to do next:\n` +
-          `    - Re-run the build. The stall is intermittent and load-dependent; a retry\n` +
-          `      normally succeeds.\n` +
-          `    - If it reproduces every time, the binary itself is likely wedged. Check it\n` +
-          `      directly:  ${bin} --help\n` +
+          `    - Check the binary directly:  ${bin} --help\n` +
           `      and rebuild it:  cargo build --release -p aihu-css-core\n` +
           `    - If a payload genuinely needs longer than ${timeoutMs} ms, raise the bound\n` +
           `      with AIHU_CSS_COMPILE_TIMEOUT_MS=<milliseconds>. Do not remove it.`,

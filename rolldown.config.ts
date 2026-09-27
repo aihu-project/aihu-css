@@ -26,8 +26,10 @@ export default defineConfig({
   plugins: [dts()],
   external: [
     'node:child_process',
+    'node:crypto',
     'node:fs',
     'node:module',
+    'node:os',
     'node:path',
     'node:url',
     // Bug A fix: keep @aihu/compiler external so consumers always resolve
