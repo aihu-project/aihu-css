@@ -19,7 +19,7 @@
 use crate::ast::{SfcAst, SfcStyleScope};
 use crate::progressive::ProgressiveRegistry;
 use crate::scanner::{scan, ScanResult};
-use crate::theme::{extract_theme_blocks, ThemeRegistry};
+use crate::theme::{extract_theme_blocks, find_bare_root_theme_block, ThemeRegistry};
 use crate::tokens::{animation_keyframes, utility_to_css};
 use crate::variants::{split_variants, AttrMatch, Variant};
 
@@ -408,6 +408,20 @@ pub fn emit_sfc_scoped_channels(ast: &SfcAst) -> Result<ScopedCssChannels, Compi
                         .to_string(),
                 });
             }
+        } else if find_bare_root_theme_block(&style.content) {
+            // No recognized `@theme { }` block, but a bare `:root { --x: y; }`
+            // block is present — a plausible-but-wrong substitution (`:root`
+            // is not a recognized theme wrapper) that previously fell through
+            // to the built-in defaults with no signal at all. Hard-error and
+            // name the expected shape rather than silently treating this as
+            // "no theme".
+            return Err(CompileError::MalformedTheme {
+                detail: "found a `:root { --token: value; }` block but no `@theme { }` \
+                         block; `:root` is not a recognized theme wrapper, so its \
+                         custom properties would be silently ignored and the built-in \
+                         defaults used instead — wrap theme tokens in `@theme { }`"
+                    .to_string(),
+            });
         }
     }
 

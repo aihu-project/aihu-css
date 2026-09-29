@@ -125,4 +125,27 @@ describe('@aihu/css-engine — compileSfc end-to-end (AST → scoped CSS)', () =
 @template { <div class="bg-primary">x</div> }`
     expect(() => compileSfc(source, 'EmptyTheme.aihu')).toThrow(/zero.*declarations/)
   })
+
+  // Regression: a `:root { }` wrapper used in place of `@theme { }` used to
+  // silently fall back to the built-in `aihu-default` tokens with no error.
+  it('throws naming @theme when a theme is wrapped in :root instead', () => {
+    const source = `@style {
+  :root {
+    --color-primary: #ff00aa;
+  }
+}
+@template { <div class="bg-primary">x</div> }`
+    expect(() => compileSfc(source, 'RootWrappedTheme.aihu')).toThrow(/@theme/)
+  })
+
+  it('does not treat a :root.dark override as a misused theme wrapper', () => {
+    const source = `@style {
+  :root.dark {
+    --color-primary: #111111;
+  }
+}
+@template { <div class="bg-primary">x</div> }`
+    const css = compileSfc(source, 'RootDarkOverride.aihu')
+    expect(css).toContain(':root.dark')
+  })
 })

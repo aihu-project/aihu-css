@@ -382,6 +382,37 @@ fn malformed_theme_block_is_a_compile_error() {
 }
 
 #[test]
+fn bare_root_theme_wrapper_is_a_compile_error() {
+    // A `:root { --token: value; }` block (instead of `@theme { }`) used to
+    // silently fall through to the built-in defaults with no error — see the
+    // issue reproducing this alongside the comment-inside-`@theme` bug.
+    let json = r#"{"tag":"X","astVersion":1,
+      "style":{"content":":root { --color-primary: #ff00aa; }","scope":"scoped"},
+      "meta":{"name":"X"},"template":null}"#;
+    let err = compile_sfc_scoped(&ast(json)).unwrap_err();
+    assert!(
+        matches!(err, CompileError::MalformedTheme { .. }),
+        "expected MalformedTheme, got {err:?}"
+    );
+    assert!(
+        err.to_string().contains("@theme"),
+        "actionable message names the expected wrapper: {err}"
+    );
+}
+
+#[test]
+fn root_dark_override_is_not_treated_as_a_theme_wrapper() {
+    // `:root.dark { }` is the established dark-mode override pattern
+    // (apply.rs) — it must not be flagged as a misused `:root` theme
+    // wrapper.
+    let json = r#"{"tag":"X","astVersion":1,
+      "style":{"content":":root.dark { --color-primary: #111; }","scope":"scoped"},
+      "meta":{"name":"X"},"template":null}"#;
+    let css = compile_sfc_scoped(&ast(json)).unwrap();
+    assert!(css.contains(":root.dark"), "{css}");
+}
+
+#[test]
 fn well_formed_theme_block_still_succeeds() {
     // Success path is byte-identical to before the Result conversion.
     let json = r#"{"tag":"X","astVersion":1,

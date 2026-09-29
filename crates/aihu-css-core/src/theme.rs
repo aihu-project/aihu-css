@@ -249,6 +249,51 @@ fn strip_css_comments(input: &str) -> String {
     out
 }
 
+/// Detect a bare `:root { ... }` block — no compound selector, e.g. not
+/// `:root.dark { }` or `:root[data-theme] { }` — that itself contains one or
+/// more `--name: value;` custom-property declarations.
+///
+/// `:root { }` is otherwise valid authored CSS (dark-mode overrides use
+/// `:root.dark`/`:root[data-theme="dark"]`, see `apply.rs`), so only the
+/// bare, custom-property-bearing form is flagged: that shape is what an
+/// author reaches for when they mean to declare a theme but use `:root`
+/// instead of the recognized `@theme { }` wrapper (a plausible-but-wrong
+/// substitution — see the issue reproducing this).
+pub fn find_bare_root_theme_block(style_content: &str) -> bool {
+    let mut search_from = 0usize;
+    while let Some(rel) = style_content[search_from..].find(":root") {
+        let at = search_from + rel;
+        let after = &style_content[at + ":root".len()..];
+        let trimmed = after.trim_start();
+        if trimmed.starts_with('{') {
+            let body_start = style_content.len() - trimmed.len() + 1;
+            let mut depth = 1u32;
+            let mut end = body_start;
+            for (i, c) in style_content[body_start..].char_indices() {
+                match c {
+                    '{' => depth += 1,
+                    '}' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            end = body_start + i;
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            let body = &style_content[body_start..end];
+            if !parse_theme_declarations(body).is_empty() {
+                return true;
+            }
+            search_from = end;
+        } else {
+            search_from = at + ":root".len();
+        }
+    }
+    false
+}
+
 /// Parse `--name: value;` declarations from a CSS body. Tolerates whitespace
 /// and `/* ... */` comments anywhere (leading, trailing, between or inside
 /// declarations) — comments are stripped before splitting so a comment
@@ -456,6 +501,31 @@ mod tests {
         assert_eq!(registry.get("--color-primary"), Some("#ff00aa"));
         assert_eq!(registry.get("--color-accent"), Some("#123456"));
         assert_eq!(registry.get("--color-surface"), Some("#abcdef"));
+    }
+
+    #[test]
+    fn bare_root_block_with_custom_props_is_detected() {
+        assert!(find_bare_root_theme_block(
+            ":root { --color-primary: #ff00aa; }"
+        ));
+    }
+
+    #[test]
+    fn root_with_a_compound_selector_is_not_flagged() {
+        // `:root.dark { … }` / `:root[data-theme="dark"] { … }` are the
+        // established authored pattern for dark-mode overrides (apply.rs) —
+        // only the bare `:root { }` wrapper is a plausible `@theme` mix-up.
+        assert!(!find_bare_root_theme_block(
+            ":root.dark { --color-primary: #111; }"
+        ));
+        assert!(!find_bare_root_theme_block(
+            ":root[data-theme=\"dark\"] { --color-primary: #111; }"
+        ));
+    }
+
+    #[test]
+    fn root_block_without_custom_props_is_not_flagged() {
+        assert!(!find_bare_root_theme_block(":root { color: red; }"));
     }
 
     #[test]
